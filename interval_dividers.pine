@@ -1,0 +1,182 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © tradeforopp
+
+//@version=5
+indicator("Interval Dividers + HTF Candle", shorttitle="Div+HTF", overlay=true, max_lines_count=500, max_labels_count=500, max_boxes_count=50)
+
+// Shared drawing limits (TradingView hard limits)
+MAX_LINES = 500
+RESERVED_LINES = 3 // three persistent HTF wick lines
+
+var line[] dividerLines = array.new_line()
+var label[] dividerLabels = array.new_label()
+var line[] timestampLines = array.new_line()
+
+// Shared timeframe selector (used by interval dividers + HTF candles)
+var g_SHARED = "Shared Timeframe"
+sharedTf = input.timeframe("D", "HTF / Divider timeframe", group=g_SHARED)
+
+// Interval divider settings
+var g_DIVIDERS = "Interval Dividers"
+lineColor = input.color(color.new(color.silver, 0), "Line color", group=g_DIVIDERS)
+lineWidth = input.int(1, "Line width", minval=1, maxval=5, group=g_DIVIDERS)
+lineStyleInput = input.string("Dotted", "Line style", options=["Solid", "Dashed", "Dotted"], group=g_DIVIDERS)
+maxDividers = input.int(200, "Max dividers on chart", minval=10, maxval=400, group=g_DIVIDERS)
+showLabels = input.bool(false, "Show timeframe labels", group=g_DIVIDERS)
+labelColor = input.color(color.new(color.black, 0), "Label text color", group=g_DIVIDERS)
+labelBg = input.color(color.new(color.silver, 70), "Label background", group=g_DIVIDERS)
+
+lineStyle = switch lineStyleInput
+    "Solid" => line.style_solid
+    "Dashed" => line.style_dashed
+    => line.style_dotted
+
+newIntervalBar = ta.change(time(sharedTf))
+shouldDrawDivider = newIntervalBar and barstate.isnew
+
+if shouldDrawDivider
+    divider = line.new(bar_index, low, bar_index, high, xloc=xloc.bar_index, extend=extend.both, color=lineColor, style=lineStyle, width=lineWidth)
+    array.push(dividerLines, divider)
+
+    if showLabels
+        dividerLabel = label.new(bar_index, high, sharedTf, style=label.style_label_down, textcolor=labelColor, color=labelBg, size=size.tiny)
+        array.push(dividerLabels, dividerLabel)
+
+// If labels are disabled later, clear leftovers to prevent stale label clutter.
+if not showLabels and array.size(dividerLabels) > 0
+    while array.size(dividerLabels) > 0
+        label.delete(array.shift(dividerLabels))
+
+while array.size(dividerLines) > maxDividers
+    line.delete(array.shift(dividerLines))
+
+while array.size(dividerLabels) > maxDividers
+    label.delete(array.shift(dividerLabels))
+
+// Higher timeframe candle settings
+var g1 = "HTF Candle Settings"
+bar_offset = input.int(30, "Current candle offset", minval=5, maxval=100, group=g1)
+bar_width = input.int(10, "Current candle width", minval=1, maxval=100, group=g1)
+bar_offset2 = input.int(19, "Previous candle offset", minval=5, maxval=100, group=g1)
+bar_width2 = input.int(10, "Previous candle width", minval=1, maxval=100, group=g1)
+bar_offset3 = input.int(8, "Third candle offset", minval=5, maxval=100, group=g1)
+bar_width3 = input.int(10, "Third candle width", minval=1, maxval=100, group=g1)
+
+var g2 = "HTF Candle Style"
+up_color = input.color(color.green, "Up color", group=g2)
+down_color = input.color(color.rgb(120, 0, 0), "Down color", group=g2)
+wick_color = input.color(color.black, "Wick color", group=g2)
+body_width = input.int(1, "Body border width", minval=0, maxval=10, group=g2)
+wick_width = input.int(1, "Wick width", minval=1, maxval=10, group=g2)
+
+[d_o, d_h, d_l, d_c] = request.security(syminfo.tickerid, sharedTf, [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_off)
+[d_o2, d_h2, d_l2, d_c2] = request.security(syminfo.tickerid, sharedTf, [open[1], high[1], low[1], close[1]], barmerge.gaps_off, barmerge.lookahead_off)
+[d_o3, d_h3, d_l3, d_c3] = request.security(syminfo.tickerid, sharedTf, [open[2], high[2], low[2], close[2]], barmerge.gaps_off, barmerge.lookahead_off)
+
+up_candle = d_c >= d_o
+up_candle2 = d_c2 >= d_o2
+up_candle3 = d_c3 >= d_o3
+
+var box candle_body = box.new(na, na, na, na, bgcolor=na, border_width=body_width)
+var box candle_body2 = box.new(na, na, na, na, bgcolor=na, border_width=body_width)
+var box candle_body3 = box.new(na, na, na, na, bgcolor=na, border_width=body_width)
+var line wick = line.new(na, na, na, na, color=wick_color, width=wick_width, style=line.style_solid)
+var line wick2 = line.new(na, na, na, na, color=wick_color, width=wick_width, style=line.style_solid)
+var line wick3 = line.new(na, na, na, na, color=wick_color, width=wick_width, style=line.style_solid)
+
+wickX = bar_index + bar_offset + int(math.floor(bar_width / 2))
+wickX2 = bar_index + bar_offset2 + int(math.floor(bar_width2 / 2))
+wickX3 = bar_index + bar_offset3 + int(math.floor(bar_width3 / 2))
+
+line.set_color(wick, wick_color)
+line.set_width(wick, wick_width)
+line.set_y1(wick, d_h)
+line.set_y2(wick, d_l)
+line.set_x1(wick, wickX)
+line.set_x2(wick, wickX)
+line.set_extend(wick, extend.none)
+
+line.set_color(wick2, wick_color)
+line.set_width(wick2, wick_width)
+line.set_y1(wick2, d_h2)
+line.set_y2(wick2, d_l2)
+line.set_x1(wick2, wickX2)
+line.set_x2(wick2, wickX2)
+line.set_extend(wick2, extend.none)
+
+line.set_color(wick3, wick_color)
+line.set_width(wick3, wick_width)
+line.set_y1(wick3, d_h3)
+line.set_y2(wick3, d_l3)
+line.set_x1(wick3, wickX3)
+line.set_x2(wick3, wickX3)
+line.set_extend(wick3, extend.none)
+
+box.set_border_width(candle_body, body_width)
+box.set_border_width(candle_body2, body_width)
+box.set_border_width(candle_body3, body_width)
+
+box.set_lefttop(candle_body, bar_index + bar_offset, up_candle ? d_c : d_o)
+box.set_rightbottom(candle_body, bar_index + bar_offset + bar_width, up_candle ? d_o : d_c)
+box.set_lefttop(candle_body2, bar_index + bar_offset2, up_candle2 ? d_c2 : d_o2)
+box.set_rightbottom(candle_body2, bar_index + bar_offset2 + bar_width2, up_candle2 ? d_o2 : d_c2)
+box.set_lefttop(candle_body3, bar_index + bar_offset3, up_candle3 ? d_c3 : d_o3)
+box.set_rightbottom(candle_body3, bar_index + bar_offset3 + bar_width3, up_candle3 ? d_o3 : d_c3)
+
+box.set_bgcolor(candle_body, up_candle ? up_color : down_color)
+box.set_bgcolor(candle_body2, up_candle2 ? up_color : down_color)
+box.set_bgcolor(candle_body3, up_candle3 ? up_color : down_color)
+box.set_border_color(candle_body, wick_color)
+box.set_border_color(candle_body2, wick_color)
+box.set_border_color(candle_body3, wick_color)
+
+// Timestamp session vertical lines
+var g_VERTICAL = "Timestamps"
+v_unlimited = input.bool(false, "Unlimited", tooltip="Unlimited shows as many selected timestamp lines as possible, up to TradingView line limits.", group=g_VERTICAL)
+
+use_v1 = input.bool(false, "Enable V1", inline="V1", group=g_VERTICAL)
+v1 = input.session("0000-0001", "Session", inline="V1", group=g_VERTICAL)
+v1_color = input.color(color.black, "", inline="V1", group=g_VERTICAL)
+
+use_v2 = input.bool(false, "Enable V2", inline="V2", group=g_VERTICAL)
+v2 = input.session("0800-0801", "Session", inline="V2", group=g_VERTICAL)
+v2_color = input.color(color.black, "", inline="V2", group=g_VERTICAL)
+
+use_v3 = input.bool(false, "Enable V3", inline="V3", group=g_VERTICAL)
+v3 = input.session("1000-1001", "Session", inline="V3", group=g_VERTICAL)
+v3_color = input.color(color.black, "", inline="V3", group=g_VERTICAL)
+
+use_v4 = input.bool(false, "Enable V4", inline="V4", group=g_VERTICAL)
+v4 = input.session("1200-1201", "Session", inline="V4", group=g_VERTICAL)
+v4_color = input.color(color.black, "", inline="V4", group=g_VERTICAL)
+
+vl_width = input.int(1, "Vertical line width", minval=1, maxval=5, group=g_VERTICAL)
+vl_limit = input.int(200, "Max timestamp lines", minval=20, maxval=400, group=g_VERTICAL)
+
+f_inSession(_sess) => not na(time(timeframe.period, _sess))
+f_newSessionStart(_sess) => f_inSession(_sess) and not f_inSession(_sess)[1]
+
+f_drawSessionLine(_enabled, _session, _color) =>
+    if _enabled and f_newSessionStart(_session) and barstate.isnew
+        l = line.new(bar_index, low, bar_index, high, xloc=xloc.bar_index, extend=extend.both, color=_color, width=vl_width)
+        array.push(timestampLines, l)
+
+f_drawSessionLine(use_v1, v1, v1_color)
+f_drawSessionLine(use_v2, v2, v2_color)
+f_drawSessionLine(use_v3, v3, v3_color)
+f_drawSessionLine(use_v4, v4, v4_color)
+
+requestedTimestampCap = v_unlimited ? MAX_LINES : vl_limit
+availableForTimestamps = math.max(0, MAX_LINES - RESERVED_LINES - array.size(dividerLines))
+lineCap = math.min(requestedTimestampCap, availableForTimestamps)
+
+while array.size(timestampLines) > lineCap
+    line.delete(array.shift(timestampLines))
+
+while array.size(dividerLines) + array.size(timestampLines) + RESERVED_LINES > MAX_LINES
+    if array.size(dividerLines) > 0
+        line.delete(array.shift(dividerLines))
+    else if array.size(timestampLines) > 0
+        line.delete(array.shift(timestampLines))
+    else
+        break
