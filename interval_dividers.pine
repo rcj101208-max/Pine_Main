@@ -11,6 +11,7 @@ RESERVED_LINES = 3 // three persistent HTF wick lines
 var line[] dividerLines = array.new_line()
 var label[] dividerLabels = array.new_label()
 var line[] timestampLines = array.new_line()
+var label[] dayOfWeekLabels = array.new_label()
 
 // Shared timeframe selector (used by interval dividers + HTF candles)
 var g_SHARED = "Shared Timeframe"
@@ -52,6 +53,39 @@ while array.size(dividerLines) > maxDividers
 
 while array.size(dividerLabels) > maxDividers
     label.delete(array.shift(dividerLabels))
+
+// Day-of-week bottom labels
+var g_DAYS = "Day Labels"
+showDayLabels = input.bool(true, "Show day-of-week labels", group=g_DAYS)
+dayLabelPosition = input.string("Midnight", "Label time", options=["Midnight", "Noon"], group=g_DAYS)
+dayLabelColor = input.color(color.new(color.gray, 0), "Text color", group=g_DAYS)
+dayLabelMax = input.int(60, "Max day labels", minval=5, maxval=200, group=g_DAYS)
+
+f_dayName(_dow) =>
+    switch _dow
+        dayofweek.monday => "MONDAY"
+        dayofweek.tuesday => "TUESDAY"
+        dayofweek.wednesday => "WEDNESDAY"
+        dayofweek.thursday => "THURSDAY"
+        dayofweek.friday => "FRIDAY"
+        dayofweek.saturday => "SATURDAY"
+        => "SUNDAY"
+
+targetHourMs = dayLabelPosition == "Noon" ? 12 * 60 * 60 * 1000 : 0
+sessionStart = time("D")
+targetTime = sessionStart + targetHourMs
+newDayLabelBar = timeframe.isintraday and barstate.isnew and not na(time[1]) and time >= targetTime and time[1] < targetTime
+
+if showDayLabels and newDayLabelBar
+    dayLabel = label.new(bar_index, na, f_dayName(dayofweek(time)), xloc=xloc.bar_index, yloc=yloc.belowbar, style=label.style_none, textcolor=dayLabelColor, size=size.small)
+    array.push(dayOfWeekLabels, dayLabel)
+
+if not showDayLabels and array.size(dayOfWeekLabels) > 0
+    while array.size(dayOfWeekLabels) > 0
+        label.delete(array.shift(dayOfWeekLabels))
+
+while array.size(dayOfWeekLabels) > dayLabelMax
+    label.delete(array.shift(dayOfWeekLabels))
 
 // Higher timeframe candle settings
 var g1 = "HTF Candle Settings"
