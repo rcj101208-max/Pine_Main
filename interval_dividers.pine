@@ -21,7 +21,7 @@ var g_DIVIDERS = "Interval Dividers"
 lineColor = input.color(color.new(color.silver, 0), "Line color", group=g_DIVIDERS)
 lineWidth = input.int(1, "Line width", minval=1, maxval=5, group=g_DIVIDERS)
 lineStyleInput = input.string("Dotted", "Line style", options=["Solid", "Dashed", "Dotted"], group=g_DIVIDERS)
-maxDividers = input.int(200, "Max dividers on chart", minval=10, maxval=400, group=g_DIVIDERS)
+maxDividers = input.int(4, "Max dividers on chart", minval=1, maxval=400, group=g_DIVIDERS)
 showLabels = input.bool(false, "Show timeframe labels", group=g_DIVIDERS)
 labelColor = input.color(color.new(color.black, 0), "Label text color", group=g_DIVIDERS)
 labelBg = input.color(color.new(color.silver, 70), "Label background", group=g_DIVIDERS)
