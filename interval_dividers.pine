@@ -1,5 +1,5 @@
 // This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
-// © tradeforopp
+// © Rcj101208
 
 //@version=5
 indicator("Interval Dividers + HTF Candle", shorttitle="Div+HTF", overlay=true, max_lines_count=500, max_labels_count=500, max_boxes_count=50)
